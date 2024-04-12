@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "DYap9PwveyAhH/J7znkGUNnsWV7WmNampbxBt1okSu8SSC5PloYbwRCGm1UyobQpohRd4qe5oImlfCcCauhdsQ==",
+  "success": true,
+  "projectFilePath": "B:\\SFU Study Materials\\CMPT415\\GearCreation\\GearCreation\\GearCreation.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Zejia Cai\\.nuget\\packages\\grasshopper\\7.13.21348.13001\\grasshopper.7.13.21348.13001.nupkg.sha512",
+    "C:\\Users\\Zejia Cai\\.nuget\\packages\\rhinocommon\\7.13.21348.13001\\rhinocommon.7.13.21348.13001.nupkg.sha512"
+  ],
+  "logs": []
+}

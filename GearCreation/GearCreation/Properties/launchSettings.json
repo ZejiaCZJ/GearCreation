@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "GearCreation": {
+      "commandName": "Executable",
+      "executablePath": "B:\\Rhinoceros\\System\\Rhino.exe",
+      "commandLineArgs": ""
+    }
+  }
+}

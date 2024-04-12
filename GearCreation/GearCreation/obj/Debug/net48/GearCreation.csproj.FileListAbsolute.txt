@@ -1,0 +1,18 @@
+B:\CMPT 415\GearCreation\GearCreation\bin\Debug\net48\GearCreation.gha
+B:\CMPT 415\GearCreation\GearCreation\bin\Debug\net48\GearCreation.pdb
+B:\CMPT 415\GearCreation\GearCreation\obj\Debug\net48\GearCreation.csproj.AssemblyReference.cache
+B:\CMPT 415\GearCreation\GearCreation\obj\Debug\net48\GearCreation.GeneratedMSBuildEditorConfig.editorconfig
+B:\CMPT 415\GearCreation\GearCreation\obj\Debug\net48\GearCreation.AssemblyInfoInputs.cache
+B:\CMPT 415\GearCreation\GearCreation\obj\Debug\net48\GearCreation.AssemblyInfo.cs
+B:\CMPT 415\GearCreation\GearCreation\obj\Debug\net48\GearCreation.csproj.CoreCompileInputs.cache
+B:\CMPT 415\GearCreation\GearCreation\obj\Debug\net48\GearCreation.gha
+B:\CMPT 415\GearCreation\GearCreation\obj\Debug\net48\GearCreation.pdb
+B:\SFU Study Materials\CMPT415\GearCreation\GearCreation\bin\Debug\net48\GearCreation.gha
+B:\SFU Study Materials\CMPT415\GearCreation\GearCreation\bin\Debug\net48\GearCreation.pdb
+B:\SFU Study Materials\CMPT415\GearCreation\GearCreation\obj\Debug\net48\GearCreation.csproj.AssemblyReference.cache
+B:\SFU Study Materials\CMPT415\GearCreation\GearCreation\obj\Debug\net48\GearCreation.GeneratedMSBuildEditorConfig.editorconfig
+B:\SFU Study Materials\CMPT415\GearCreation\GearCreation\obj\Debug\net48\GearCreation.AssemblyInfoInputs.cache
+B:\SFU Study Materials\CMPT415\GearCreation\GearCreation\obj\Debug\net48\GearCreation.AssemblyInfo.cs
+B:\SFU Study Materials\CMPT415\GearCreation\GearCreation\obj\Debug\net48\GearCreation.csproj.CoreCompileInputs.cache
+B:\SFU Study Materials\CMPT415\GearCreation\GearCreation\obj\Debug\net48\GearCreation.gha
+B:\SFU Study Materials\CMPT415\GearCreation\GearCreation\obj\Debug\net48\GearCreation.pdb
