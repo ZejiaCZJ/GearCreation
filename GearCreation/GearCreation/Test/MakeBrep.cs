@@ -22,7 +22,7 @@ namespace GearCreation.Test
         /// Initializes a new instance of the MakeBrep class.
         /// </summary>
         public MakeBrep()
-          : base("MakeBrep", "Nickname",
+          : base("MakeBrep", "MakeBrep",
               "Make a mesh to brep",
               "GearCreation", "Test")
         {

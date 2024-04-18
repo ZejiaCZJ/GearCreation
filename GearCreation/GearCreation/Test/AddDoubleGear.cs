@@ -49,19 +49,19 @@ namespace GearCreation.Test
             if (isPressed)
             {
                 Point3d center_point = new Point3d(0, 0, 0);
-                Vector3d gear_direction = new Vector3d(0, 0, 0);
+                Vector3d gear_direction = new Vector3d(0, 0, 1);
                 Vector3d gear_x_dir = new Vector3d(0, 0, 0);
-                int first_teethNum = 10;
+                int first_teethNum = 20;
                 int second_teethNum = 20;
                 double mod = 1.5;
-                double pressure_angle = 20;
+                double pressure_angle = 25;
                 double Thickness = 5;
                 double selfRotAngle = 0;
                 double coneAngle = 90;
                 bool movable = true;
                 RhinoDoc myDoc = RhinoDoc.ActiveDoc;
 
-                SpurGear gear = new SpurGear(center_point, gear_direction, gear_x_dir, first_teethNum, mod, pressure_angle, Thickness, selfRotAngle, movable);
+                BevelGear gear = new BevelGear(center_point, gear_direction, gear_x_dir, first_teethNum, mod, pressure_angle, Thickness, selfRotAngle, coneAngle, movable);
 
                 Point3d second_center_point = new Point3d(0, 0, 5);
                 SpurGear second_gear = new SpurGear(second_center_point, gear_direction, gear_x_dir, second_teethNum, mod, pressure_angle, Thickness, selfRotAngle, movable);

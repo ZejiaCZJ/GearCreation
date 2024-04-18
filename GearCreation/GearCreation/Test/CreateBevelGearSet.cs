@@ -12,6 +12,8 @@ namespace GearCreation.Test
 {
     public class CreateBevelGearSet : GH_Component
     {
+        double pressure_angle = 20;
+
         /// <summary>
         /// Initializes a new instance of the MyComponent1 class.
         /// </summary>
@@ -58,14 +60,13 @@ namespace GearCreation.Test
                 Vector3d first_gear_x_dir = new Vector3d(0, 0, 0);
                 int first_teethNum = 30;
                 double first_mod = 1.5;
-                double first_pressure_angle = 20;
                 double first_Thickness = 5;
                 double first_selfRotAngle = 0;
                 bool first_movable = true;
                 double first_coneAngle = 90;
                 RhinoDoc myDoc = RhinoDoc.ActiveDoc;
 
-                BevelGear first_gear = new BevelGear(first_center_point, first_gear_direction, first_gear_x_dir, first_teethNum, first_mod, first_pressure_angle, first_Thickness, first_selfRotAngle, first_coneAngle, first_movable);
+                BevelGear first_gear = new BevelGear(first_center_point, first_gear_direction, first_gear_x_dir, first_teethNum, first_mod, pressure_angle, first_Thickness, first_selfRotAngle, first_coneAngle, first_movable);
 
                 myDoc.Objects.Add(first_gear.Model);
 
@@ -77,14 +78,14 @@ namespace GearCreation.Test
                 Brep firstPipe = Brep.CreatePipe(pipeCurve, 2, false, PipeCapMode.Flat, true, myDoc.ModelAbsoluteTolerance, myDoc.ModelAngleToleranceRadians)[0];
 
                 //齿轮下方垫片
-                startPt = new Point3d(0, 0, first_gear.Model.GetBoundingBox(true).Min.Z - 1);
+                startPt = new Point3d(0, 0, first_gear.Model.GetBoundingBox(true).Min.Z - 0.6);
                 line = new Line(startPt, endPt);
                 pipeCurve = line.ToNurbsCurve();
                 Brep firstBottomGasketPipe = Brep.CreatePipe(pipeCurve, 4, false, PipeCapMode.Flat, true, myDoc.ModelAbsoluteTolerance, myDoc.ModelAngleToleranceRadians)[0];
 
                 //齿轮上方垫片
                 startPt = new Point3d(0, 0, first_gear.Model.GetBoundingBox(true).Max.Z + 2);
-                endPt = new Point3d(0, 0, first_gear.Model.GetBoundingBox(true).Max.Z + 1);
+                endPt = new Point3d(0, 0, first_gear.Model.GetBoundingBox(true).Max.Z + 0.6);
                 line = new Line(startPt, endPt);
                 pipeCurve = line.ToNurbsCurve();
                 Brep firstTopGasketPipe = Brep.CreatePipe(pipeCurve, 6, false, PipeCapMode.Flat, true, myDoc.ModelAbsoluteTolerance, myDoc.ModelAngleToleranceRadians)[0];
@@ -102,7 +103,6 @@ namespace GearCreation.Test
                 #region second bevel gear
                 int second_teethNum = 30;
                 double second_mod = 1.5;
-                double second_pressure_angle = 20;
                 double second_Thickness = 5;
                 double second_selfRotAngle = 360 / 30 / 2;
                 bool second_movable = true;
@@ -117,7 +117,7 @@ namespace GearCreation.Test
                 second_center_point.Z = first_gear.Model.GetBoundingBox(true).Min.Z + second_outDiameter / 2;
 
                 //齿轮
-                BevelGear second_gear = new BevelGear(second_center_point, second_gear_direction, second_gear_x_dir, second_teethNum, second_mod, second_pressure_angle, second_Thickness, second_selfRotAngle, 90.0, second_movable);
+                BevelGear second_gear = new BevelGear(second_center_point, second_gear_direction, second_gear_x_dir, second_teethNum, second_mod, pressure_angle, second_Thickness, second_selfRotAngle, 90.0, second_movable);
                 myDoc.Objects.Add(second_gear.Model);
 
                 //齿轮中间柱子
@@ -129,14 +129,14 @@ namespace GearCreation.Test
 
 
                 //齿轮底部垫片
-                startPt = new Point3d(second_gear.Model.GetBoundingBox(true).Max.X + 1, 0, second_center_point.Z);
+                startPt = new Point3d(second_gear.Model.GetBoundingBox(true).Max.X + 0.6, 0, second_center_point.Z);
                 line = new Line(startPt, endPt);
                 pipeCurve = line.ToNurbsCurve();
                 Brep secondBottomGasketPipe = Brep.CreatePipe(pipeCurve, 4, false, PipeCapMode.Flat, true, myDoc.ModelAbsoluteTolerance, myDoc.ModelAngleToleranceRadians)[0];
 
                 //齿轮上方垫片
                 startPt = new Point3d(second_gear.Model.GetBoundingBox(true).Min.X - 2, 0, second_center_point.Z);
-                endPt = new Point3d(second_gear.Model.GetBoundingBox(true).Min.X - 1, 0, second_center_point.Z);
+                endPt = new Point3d(second_gear.Model.GetBoundingBox(true).Min.X - 0.6, 0, second_center_point.Z);
                 line = new Line(startPt, endPt);
                 pipeCurve = line.ToNurbsCurve();
                 Brep secondTopGasketPipe = Brep.CreatePipe(pipeCurve, 6, false, PipeCapMode.Flat, true, myDoc.ModelAbsoluteTolerance, myDoc.ModelAngleToleranceRadians)[0];

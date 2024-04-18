@@ -188,6 +188,14 @@ namespace GearCreation
                     }
                     #endregion
 
+                    #region Create the start gear(comes with motor) position
+                    BoundingBox mainModel_bbox = mainModel.GetBoundingBox(true);
+                    //Find central point of the base of the bounding box
+                    double width = mainModel_bbox.Max.X-mainModel_bbox.Min.X;
+                    double length = mainModel_bbox.Max.Y-mainModel_bbox.Min.Y;
+                    Point3d start_gear_centerPoint = new Point3d(width / 2, length / 2, mainModel_bbox.Min.Z);
+                    #endregion
+
                     #region Create Gear train
 
                     #region Calculate the point of the end effector that extend the pipe to the main model
@@ -199,9 +207,19 @@ namespace GearCreation
                             RhinoApp.WriteLine("No intersection found");
                             return;
                         }
-                        Brep[] intersectionSurface = Brep.CreatePlanarBreps(intersectionCurves, myDoc.ModelAbsoluteTolerance);
+                        //Brep[] intersectionSurface = Brep.CreatePlanarBreps(intersectionCurves, myDoc.ModelAbsoluteTolerance);
                         //myDoc.Objects.Add(intersectionSurface[0]);
-                        pointConnection1 = intersectionSurface[0].GetBoundingBox(true).Center;
+                        //pointConnection1 = intersectionSurface[0].GetBoundingBox(true).Center;
+                        //myDoc.Objects.AddPoint(pointConnection1);
+
+                        if (intersectionCurves.Length > 1)
+                        {
+                            RhinoApp.WriteLine("Your cutter cuts more than one portion of the model. Please try to cut only one portion");
+                            return;
+                        }
+
+                        AreaMassProperties areaMass = AreaMassProperties.Compute(intersectionCurves[0], myDoc.ModelAbsoluteTolerance);
+                        pointConnection1 = areaMass.Centroid;
                         //myDoc.Objects.AddPoint(pointConnection1);
                     }
                     else
@@ -216,6 +234,14 @@ namespace GearCreation
                     Vector3d end_gear_dir = essentials.CutterPlane.Normal;
                     double distance = pointConnection1.DistanceTo(mainModel.GetBoundingBox(true).Center); 
                     Line endEffector_rail = new Line(pointConnection1, end_gear_dir, distance);
+
+                    if (!cuttedBrep[0].IsManifold || !cuttedBrep[0].IsSolid)
+                    {
+                        RhinoApp.WriteLine("Your model cannot be fixed to become manifold and closed, please try to fix it manually");
+                        return;
+                    }
+
+
                     if (!cuttedBrep[0].IsPointInside(endEffector_rail.To, myDoc.ModelAbsoluteTolerance, true)) // TODO: We need to make sure if the main model is closed and manifold. Perhaps write a function to fix the original model in the first place.
                     {
                         end_gear_dir.Reverse();
@@ -241,74 +267,89 @@ namespace GearCreation
                     Vector3d end_gear_xDir = new Vector3d(0, 0, 0);
                     int end_gear_teethNum = 20;
                     double end_gear_selfRotAngle = 0;
-                    BevelGear end_gear = new BevelGear(end_gear_centerPoint, end_gear_Direction, end_gear_xDir, end_gear_teethNum, module, pressure_angle, thickness, end_gear_selfRotAngle, 90, false);
+                    BevelGear end_gear = new BevelGear(end_gear_centerPoint, end_gear_Direction, end_gear_xDir, end_gear_teethNum, module, pressure_angle, thickness, end_gear_selfRotAngle, end_gear_coneAngle, false);
                     myDoc.Objects.Add(end_gear.Model);
 
                     #region Create the pipe that connects the end gear and end effector --> Half finish, need to implement gaskets
-                    Brep actualPipe = new Brep();
-                    Brep solutablePipe = new Brep();
-                    if (endEffector_rail.Extend(0, 5))
-                    {
-                        actualPipe = Brep.CreatePipe(endEffector_rail.ToNurbsCurve(), 3, false, PipeCapMode.Flat, true, myDoc.ModelAbsoluteTolerance, myDoc.ModelAngleToleranceRadians)[0];
-                    }
+                    //Brep actualPipe = new Brep();
+                    //Brep solutablePipe = new Brep();
+                    //if (endEffector_rail.Extend(0, 5))
+                    //{
+                    //    actualPipe = Brep.CreatePipe(endEffector_rail.ToNurbsCurve(), 3, false, PipeCapMode.Flat, true, myDoc.ModelAbsoluteTolerance, myDoc.ModelAngleToleranceRadians)[0];
+                    //}
 
-                    if (endEffector_rail.Extend(0, 4))
-                    {
-                        solutablePipe = Brep.CreateThickPipe(endEffector_rail.ToNurbsCurve(), 3, 3.7, false, PipeCapMode.Flat, true, myDoc.ModelAbsoluteTolerance, myDoc.ModelAngleToleranceRadians)[0];
-                    }
+                    //if (endEffector_rail.Extend(0, 4))
+                    //{
+                    //    solutablePipe = Brep.CreateThickPipe(endEffector_rail.ToNurbsCurve(), 3, 3.7, false, PipeCapMode.Flat, true, myDoc.ModelAbsoluteTolerance, myDoc.ModelAngleToleranceRadians)[0];
+                    //}
 
-                    //mainModel = Brep.CreateBooleanDifference(mainModel, actualPipe, myDoc.ModelAbsoluteTolerance, false)[0];
-                    //mainModel = Brep.CreateBooleanDifference(mainModel, solutablePipe, myDoc.ModelAbsoluteTolerance, false)[0];
+                    ////mainModel = Brep.CreateBooleanDifference(mainModel, actualPipe, myDoc.ModelAbsoluteTolerance, false)[0];
+                    ////mainModel = Brep.CreateBooleanDifference(mainModel, solutablePipe, myDoc.ModelAbsoluteTolerance, false)[0];
 
-                    Brep[] breps = new Brep[2];
-                    breps[0] = end_gear.Model;
-                    breps[1] = actualPipe;
+                    //Brep[] breps = new Brep[2];
+                    //breps[0] = end_gear.Model;
+                    //breps[1] = actualPipe;
 
-                    breps = Brep.CreateBooleanUnion(breps, myDoc.ModelAbsoluteTolerance, false);
-                    myDoc.Objects.Add(breps[0]);
+                    //breps = Brep.CreateBooleanUnion(breps, myDoc.ModelAbsoluteTolerance, false);
+                    //myDoc.Objects.Add(breps[0]);
                     #endregion
 
                     #endregion
 
-                    /*
+                    
                     #region driven gear of end gear
                     //Calculate the vector that is perpendicular to the end gear facing direction
                     Vector3d orthogonal = new Vector3d();
                     orthogonal.PerpendicularTo(end_gear_Direction);
-                    while (orthogonal.Z == end_gear_Direction.Z || orthogonal.Z >= end_gear_Direction.Z)
-                        orthogonal.Rotate(Math.PI/2, end_gear_Direction);
+                    double smallest_z = orthogonal.Z;
+                    Vector3d orthogonal_temp = orthogonal;
+                    int count = 0;
+                    while(count < 90)
+                    {
+                        orthogonal_temp.Rotate(Math.PI/180, end_gear_Direction);
+                        if(smallest_z >= orthogonal_temp.Z)
+                        {
+                            orthogonal = orthogonal_temp;
+                            smallest_z = orthogonal_temp.Z;
+                        }
+                        count++;
+                    }
                     
                     //Get the line that is along the xy axis that has the same direction of the end gear facing direction
-                    Line rail1 = new Line(end_gear_centerPoint, orthogonal, end_gear.Model.GetBoundingBox(true).Min.Z); //A line that is along the xy axis that has the same direction of the end gear facing direction
+                    Line rail1 = new Line(end_gear_centerPoint, orthogonal, end_gear.TipRadius); //A line that is paralle to the end gear and through the end gear's center point
                     Line rail2 = new Line(end_gear_centerPoint, end_gear_Direction, 100); // A line that has the direction of the end gear facing direction
-                    Line rail3 = new Line(end_gear_centerPoint, new Vector3d(rail2.Direction.X, rail2.Direction.Y, 0));// A line that is paralle to the end gear and through the end gear's center point
+                    Line rail3 = new Line(end_gear_centerPoint, new Vector3d(rail2.Direction.X, rail2.Direction.Y, 0));//A line that is along the xy plane that has the same direction of the end gear facing direction
 
-                    //Move rail3 to minimum z of the end gear and extend it from the end
-                    double length = end_gear_centerPoint.Z - end_gear.Model.GetBoundingBox(true).Min.Z; 
+                    //Move rail3 to minimum z of the end gear
+                    length = end_gear_centerPoint.Z - end_gear.Model.GetBoundingBox(true).Min.Z; 
                     Transform transform = Transform.Translation(new Vector3d(0,0,-length));
                     rail3.Transform(transform);
-                    rail3.Extend(100,100);
+                    
 
-                    //myDoc.Objects.Add(rail1.ToNurbsCurve());
-                    //myDoc.Objects.Add(rail3.ToNurbsCurve());
+                    myDoc.Objects.Add(rail1.ToNurbsCurve());
+                    myDoc.Objects.Add(rail3.ToNurbsCurve());
 
 
-                    //Calculate the intersection point of rail1 and rail3
-                    if (Intersection.LineLine(rail1, rail3, out double a, out double b))
-                    {
-                        RhinoApp.WriteLine("No intersection found when creating the driven gear of end gear");
-                        return;
-                    }
+                    //Find the Center Point of the driven gear of end gear by moving along rail3
+                    //Point3d closestPoint = rail3
 
-                    Point3d intersectPoint = rail3.PointAt(b);
-                    //myDoc.Objects.AddPoint(intersectPoint);
-
-                    //Use the intersection point to get the Center Point of the driven gear of end gear
-
+                    Line rail4 = new Line(rail1.To, end_gear_Direction, thickness);
+                    myDoc.Objects.Add(rail4.ToNurbsCurve());
+                    Line rail5 = new Line(rail4.To, new Vector3d(rail2.Direction.X, rail2.Direction.Y, 0), 13);
+                    myDoc.Objects.Add(rail5.ToNurbsCurve());
+                    Point3d first_driven_gear_centerPoint = rail5.To;
+                    Vector3d first_driven_gear_Direction = new Vector3d(0, 0, 1);
+                    Vector3d first_driven_gear_xDir = new Vector3d(0, 0, 0);
+                    int first_driven_gear_teethNum = 20;
+                    double first_driven_gear_selfRotAngle = 0;
+                    double first_driven_gear_coneAngle = end_gear_coneAngle;
+                    BevelGear first_driven_gear = new BevelGear(first_driven_gear_centerPoint, first_driven_gear_Direction, first_driven_gear_xDir, first_driven_gear_teethNum, module, pressure_angle, thickness, first_driven_gear_selfRotAngle, first_driven_gear_coneAngle, false);
+                    myDoc.Objects.Add(first_driven_gear.Model);
 
                     //Create the driven gear
+
                     #endregion
-                    */
+
 
 
 
@@ -407,3 +448,17 @@ namespace GearCreation
         }
     }
 }
+
+
+
+
+
+
+
+
+/*
+ * 问题1：计算end effector的连接点的算法中， 用到了连接面的bounding box的中心点， 我们需要注意的是，Bounding box不是按照连接面的形状来生成的，所以计算出来的连接点是有误差的
+ * 
+ * 
+ * 
+ * */
