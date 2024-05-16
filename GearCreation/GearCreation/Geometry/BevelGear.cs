@@ -19,7 +19,9 @@ namespace GearCreation.Geometry
         private double _clearance = 0.167;
         private double _involSample = 10;
         private double _tipRadius = 0;
+        private double _pitchRadius = 0;
         private double _rootRadius = 0;
+        private double _baseRadius = 0;
         private double _toothDepth = 0;
         private double _selfRotAngle = 0; // degree
         private bool _isMovable = false;
@@ -34,6 +36,10 @@ namespace GearCreation.Geometry
         private List<Brep> toothFace = new List<Brep>();
         private Brep gearBottomFace = new Brep();
 
+        private BoundingBox _boundingBox = new BoundingBox();
+        private Brep _boundingBox_big = new Brep();
+        private Brep[] _gaskets = new Brep[2];
+
         private RhinoDoc mydoc = RhinoDoc.ActiveDoc;
 
 
@@ -43,6 +49,8 @@ namespace GearCreation.Geometry
         public double FaceWidth { get => _faceWidth; protected set => _faceWidth = value; }
         public double TipRadius { get => _tipRadius; protected set => _tipRadius = value; }
         public double RootRadius { get => _rootRadius; protected set => _rootRadius = value; }
+        public double PitchRadius { get => _pitchRadius; protected set => _pitchRadius = value; }
+        public double BaseRadius { get => _baseRadius; protected set => _baseRadius = value; }
         public double ToothDepth { get => _toothDepth; protected set => _toothDepth = value; }
         public Point3d CenterPoint { get => _centerPoint; protected set => _centerPoint = value; }
         public Vector3d Direction { get => _direction; protected set => _direction = value; }
@@ -50,6 +58,12 @@ namespace GearCreation.Geometry
         public Vector3d X_direction { get => _x_direction; set => _x_direction = value; }
         public List<Vector3d> TeethDirections { get => teethDirections; }
         public List<Point3d> TeethTips { get => teethTips; }
+
+        public BoundingBox Boundingbox { get => _boundingBox; }
+
+        public Brep Boundingbox_big { get => _boundingBox_big; }
+
+        public Brep[] Gaskets { get => _gaskets; }
 
         public double SelfRotAngle { get => _selfRotAngle; }
 
@@ -80,6 +94,10 @@ namespace GearCreation.Geometry
             _coneAngle = cone_angle;
 
             GenerateGear();
+        }
+
+        public BevelGear()
+        {
         }
 
         public List<Point3d> GenerateToothSide(double baseDia, double outDia, double sampleNum, double pressureAngle, double module, double s0, double pitchDia)
@@ -160,6 +178,8 @@ namespace GearCreation.Geometry
             _tipRadius = outDiameter / 2;
             _rootRadius = rootDiameter / 2;
             _toothDepth = _tipRadius - _rootRadius;
+            _pitchRadius = pitchDiameter / 2;
+            _baseRadius = baseDiameter / 2;
             _pitch = Math.PI * _module;
 
             // More details about involute spur gear: https://www.tec-science.com/mechanical-power-transmission/involute-gear/calculation-of-involute-gears/
@@ -184,7 +204,7 @@ namespace GearCreation.Geometry
             if (rootDiameter > baseDiameter)
             {
                 invol_angle_module = Math.Sqrt(Math.Pow((rootDiameter / baseDiameter), 2) - 1);
-                RhinoApp.WriteLine("invol_angle_module" + invol_angle_module);
+                //RhinoApp.WriteLine("invol_angle_module" + invol_angle_module);
             }
 
             List<Point3d> involPts = GenerateInvolPoints(baseDiameter, invol_start_angle, invol_end_angle, invol_angle_module, _involSample);
@@ -202,6 +222,7 @@ namespace GearCreation.Geometry
             involCrv2.Transform(mirror);
 
             Point3d ptArc = tiltPointAroundCircle(new Point3d(0, _tipRadius, 0), _coneAngle / 2, pitchDiameter);
+            //mydoc.Objects.AddPoint(ptArc);
             //RhinoApp.WriteLine("point on up arc" + ptArc);
             Arc topArc = new Arc(involCrv1.PointAtEnd, ptArc, involCrv2.PointAtEnd);
             Curve arcCrv = new ArcCurve(topArc);
@@ -209,7 +230,7 @@ namespace GearCreation.Geometry
             //dedendum
             if (rootDiameter < baseDiameter)
             {
-                RhinoApp.WriteLine("rootDiameter < baseDiameter");
+                //RhinoApp.WriteLine("rootDiameter < baseDiameter");
                 double theta = Math.PI * _module / (2 * baseDiameter);
                 Point3d pt = new Point3d(-_rootRadius * Math.Cos(invol_start_angle), _rootRadius * Math.Sin(invol_start_angle), 0);
                 pt.Transform(mirror);
@@ -246,13 +267,11 @@ namespace GearCreation.Geometry
             //RhinoApp.WriteLine("pt on bottom arc" + bottomPt);
             Arc bottomArc = new Arc(startPt, bottomPt, btEndPt);
             Curve bottomCrv = new ArcCurve(bottomArc);
-            //RhinoApp.WriteLine("bottom crv" + startPt + bottomPt + btEndPt);
 
             //closed tooth curve
-            List<Point3d> pts = new List<Point3d>();
-            pts.Add(startPt);
-            pts.Add(endPt);
-            Curve closedToothCurve = Curve.CreateInterpolatedCurve(pts, 1);
+            Curve closedToothCurve = new Line(startPt, endPt).ToNurbsCurve();
+            
+
             List<Curve> completeToothCurves = new List<Curve>();
             completeToothCurves.Add(closedToothCurve); completeToothCurves.Add(tooth);
             toothFace.Add(Brep.CreateEdgeSurface(completeToothCurves));
@@ -328,7 +347,7 @@ namespace GearCreation.Geometry
         private void GenerateGear()
         {
             GenerateBaseCurve();
-            RhinoApp.WriteLine("extruding facewidth" + _faceWidth);
+            //RhinoApp.WriteLine("extruding facewidth" + _faceWidth);
             var sweep = new SweepOneRail();
             sweep.AngleToleranceRadians = mydoc.ModelAngleToleranceRadians;
             sweep.ClosedSweep = false;
@@ -360,8 +379,16 @@ namespace GearCreation.Geometry
             Point3d yPoint = new Point3d(0, boundingBox.Max.Y, h);
             Plane plane = new Plane(Origin, xPoint, yPoint);
             PlaneSurface cutter = PlaneSurface.CreateThroughBox(plane, boundingBox);
-            //mydoc.Objects.Add(model);
-            model = Brep.CreateBooleanSplit(model, cutter.ToBrep(), mydoc.ModelAbsoluteTolerance)[0];
+
+            Brep[] outBreps = Brep.CreateBooleanSplit(model, cutter.ToBrep(), mydoc.ModelAbsoluteTolerance);
+
+            if (outBreps.Length != 0)
+                model = outBreps[0];
+            else
+            {
+                RhinoApp.WriteLine($"Failed to create a bevel gear given the cone angle {_coneAngle}, because it's maximum height is not enough for the required gear width {_faceWidth}");
+            }
+
 
 
             if (_isMovable)
@@ -382,6 +409,20 @@ namespace GearCreation.Geometry
             }
 
             base.Model = model;
+            _boundingBox = base.Model.GetBoundingBox(true);
+            //_tipRadius = (_boundingBox.Max.X - _boundingBox.Min.X) / 2;
+            Point3d max = new Point3d(_boundingBox.Max.X + 1, _boundingBox.Max.Y + 1, _boundingBox.Max.Z + 3);
+            Point3d min = new Point3d(_boundingBox.Min.X - 1, _boundingBox.Min.Y - 1, _boundingBox.Min.Z - 2);
+            _boundingBox_big = (new BoundingBox(min, max)).ToBrep();
+
+            Point3d startPoint = new Point3d(_centerPoint.X, _centerPoint.Y, _boundingBox.Min.Z - 2);
+            Point3d endPoint = new Point3d(_centerPoint.X, _centerPoint.Y, _boundingBox.Min.Z - 0.3);
+            Line rail = new Line(startPoint, endPoint);
+            _gaskets[0] = Brep.CreateThickPipe(rail.ToNurbsCurve(), 1.7, 4, true, PipeCapMode.Flat, true, RhinoDoc.ActiveDoc.ModelAbsoluteTolerance, RhinoDoc.ActiveDoc.ModelAngleToleranceRadians)[0];
+            startPoint.Z = _boundingBox.Max.Z + 3;
+            endPoint.Z = _boundingBox.Max.Z + 0.3;
+            rail = new Line(startPoint, endPoint);
+            _gaskets[1] = Brep.CreateThickPipe(rail.ToNurbsCurve(), 1.7, 4, true, PipeCapMode.Flat, true, RhinoDoc.ActiveDoc.ModelAbsoluteTolerance, RhinoDoc.ActiveDoc.ModelAngleToleranceRadians)[0];
 
             if (_centerPoint != Point3d.Unset)
             {
@@ -389,6 +430,10 @@ namespace GearCreation.Geometry
                 Transform centerTrans = Transform.Translation(centerDirection);
                 base.Model.Transform(centerTrans);
                 base.BaseCurve.Transform(centerTrans);
+                _boundingBox.Transform(centerTrans);
+                _boundingBox_big.Transform(centerTrans);
+                _gaskets[0].Transform(centerTrans);
+                _gaskets[1].Transform(centerTrans);
                 _x_original_direction.Transform(centerTrans);
 
                 for (int i = 0; i < teethTips.Count(); i++)
@@ -405,6 +450,11 @@ namespace GearCreation.Geometry
                 Transform centerRotate = Transform.Rotation(new Vector3d(0, 0, 1), _direction, _centerPoint);
                 base.Model.Transform(centerRotate);
                 base.BaseCurve.Transform(centerRotate);
+                _boundingBox.Transform(centerRotate);
+                _boundingBox_big.Transform(centerRotate);
+                
+
+
                 _x_original_direction.Transform(centerRotate);
                 for (int i = 0; i < teethTips.Count(); i++)
                 {
@@ -419,9 +469,16 @@ namespace GearCreation.Geometry
                     teethDirections[i] = p;
                 }
 
+                centerRotate = Transform.Rotation(new Vector3d(0, 0, 1), _direction, _gaskets[0].GetBoundingBox(true).Center);
+                _gaskets[0].Transform(centerRotate);
+                centerRotate = Transform.Rotation(new Vector3d(0, 0, 1), _direction, _gaskets[1].GetBoundingBox(true).Center);
+                _gaskets[1].Transform(centerRotate);
+
                 Transform centerRotate1 = Transform.Rotation(_x_original_direction, _x_direction, _centerPoint);
                 base.Model.Transform(centerRotate1);
                 base.BaseCurve.Transform(centerRotate1);
+                _boundingBox.Transform(centerRotate1);
+                _boundingBox_big.Transform(centerRotate1);
                 for (int i = 0; i < teethTips.Count(); i++)
                 {
                     Point3d p = teethTips[i];
@@ -434,7 +491,10 @@ namespace GearCreation.Geometry
                     p.Transform(centerRotate1);
                     teethDirections[i] = p;
                 }
-
+                centerRotate1 = Transform.Rotation(_x_original_direction, _x_direction, _gaskets[0].GetBoundingBox(true).Center);
+                _gaskets[0].Transform(centerRotate);
+                centerRotate1 = Transform.Rotation(_x_original_direction, _x_direction, _gaskets[1].GetBoundingBox(true).Center);
+                _gaskets[1].Transform(centerRotate);
             }
 
             double selfRotRad = Math.PI / 180 * _selfRotAngle;
@@ -454,6 +514,47 @@ namespace GearCreation.Geometry
                 teethDirections[i] = p;
             }
             
+        }
+
+        public void translate(Point3d centerPoint)
+        {
+            Vector3d temp_centerPoint = Point3d.Subtract(centerPoint, _centerPoint);
+            _centerPoint = centerPoint;
+            Transform centerTrans = Transform.Translation(temp_centerPoint);
+            base.Model.Transform(centerTrans);
+            base.BaseCurve.Transform(centerTrans);
+            _boundingBox.Transform(centerTrans);
+            _boundingBox_big.Transform(centerTrans);
+            _gaskets[0].Transform(centerTrans);
+            _gaskets[1].Transform(centerTrans);
+            _x_original_direction.Transform(centerTrans);
+
+            for (int i = 0; i < teethTips.Count(); i++)
+            {
+                Point3d p = teethTips[i];
+                p.Transform(centerTrans);
+                teethTips[i] = p;
+            }
+        }
+
+        public BevelGear Duplicate()
+        {
+            BevelGear gear = new BevelGear();
+            gear.NumTeeth = this.NumTeeth;
+            gear.Pitch = this.Pitch;
+            gear.Module = this.Module;
+            gear.FaceWidth = this.FaceWidth;
+            gear.TipRadius = this.TipRadius;
+            gear.RootRadius = this.RootRadius;
+            gear.PitchRadius = this.PitchRadius;
+            gear.BaseRadius = this.BaseRadius;
+            gear.ToothDepth = this.ToothDepth;
+            gear.CenterPoint = new Point3d(this.CenterPoint);
+            gear.Direction = new Vector3d(this.Direction);
+            gear.IsMovable = this.IsMovable;
+            gear.X_direction = new Vector3d(this.X_direction);
+            //gear.TeethDirections = new List<Vector3d>(this.TeethDirections);
+            return gear;
         }
     }
 }
