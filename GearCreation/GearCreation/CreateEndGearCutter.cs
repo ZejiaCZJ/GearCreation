@@ -17,11 +17,11 @@ namespace GearCreation
     {
 
         Point3d customized_part_location = new Point3d(0, 0, 0);
-        private Brep currModel;
-        private List<Point3d> surfacePts;
-        private Point3dList selectedPts;
-        private Guid currModelObjId;
-        private RhinoDoc myDoc;
+        private Brep currModel = new Brep();
+        private List<Point3d> surfacePts = new List<Point3d>();
+        private Point3dList selectedPts = new Point3dList();
+        private Guid currModelObjId = Guid.Empty;
+        private RhinoDoc myDoc = RhinoDoc.ActiveDoc;
         ObjectAttributes solidAttribute, lightGuideAttribute, redAttribute, yellowAttribute, soluableAttribute;
         private bool end_button_clicked;
         Brep cutter = new Brep();
@@ -33,9 +33,6 @@ namespace GearCreation
               "This component create a gear train",
               "GearCreation", "Main")
         {
-            myDoc = RhinoDoc.ActiveDoc;
-            surfacePts = new List<Point3d>();
-            selectedPts = new Point3dList();
 
             int solidIndex = myDoc.Materials.Add();
             Material solidMat = myDoc.Materials[solidIndex];
@@ -163,8 +160,16 @@ namespace GearCreation
                 currModelObjId = objSel_ref1.ObjectId;
                 ObjRef currObj = new ObjRef(currModelObjId);
                 currModel = currObj.Brep(); //The model body
+                RhinoApp.WriteLine($"The selected current model is {currModelObjId}");
 
                 ObjectType objectType = currObj.Geometry().ObjectType;
+
+                List<Brep> allBreps = new List<Brep>();
+                foreach (var item in myDoc.Objects.GetObjectList(ObjectType.Brep))
+                {
+                    ObjRef objRef = new ObjRef(myDoc, item.Id);
+                    allBreps.Add(objRef.Brep());
+                }
 
                 if (currObj.Geometry().ObjectType == ObjectType.Mesh)
                 {
@@ -425,6 +430,10 @@ namespace GearCreation
                 {
                     myDoc.Objects.Delete(ptsID, true);
                 }
+                selectedPts.Clear();
+                surfacePts.Clear();
+                pts_normals.Clear();
+                cutterCurves.Clear();
 
                 return cutter;
 
