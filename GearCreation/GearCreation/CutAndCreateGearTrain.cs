@@ -72,6 +72,7 @@ namespace GearCreation
         private double pressure_angle = 20;
         private double thickness = 5;
         private double ratio;
+        private double clearance = 0.5;
         ObjectAttributes solidAttribute, lightGuideAttribute, redAttribute, yellowAttribute, soluableAttribute;
 
         private List<Brep> allBreps;
@@ -315,7 +316,7 @@ namespace GearCreation
 
                     #region Calculate the cone angle of the end bevel gear and its driven gear
                     double end_gear_coneAngle = RhinoMath.ToDegrees(Vector3d.VectorAngle(new Vector3d(0, 0, 1), end_gear_dir));
-                    RhinoApp.WriteLine("end gear cone angle is " + end_gear_coneAngle);
+
                     myDoc.Views.Redraw();
                     #endregion
 
@@ -343,7 +344,7 @@ namespace GearCreation
                     Point3d end_gear_centerPoint = endEffector_rail.To;
                     Vector3d end_gear_xDir = new Vector3d(0, 0, 0);
                     int end_gear_teethNum = 10;
-                    double end_gear_selfRotAngle = 0;
+                    double end_gear_selfRotAngle = 360/end_gear_teethNum/2;
                     BevelGear end_gear = new BevelGear(end_gear_centerPoint, end_gear_Direction, end_gear_xDir, end_gear_teethNum, module, pressure_angle, thickness, end_gear_selfRotAngle, end_gear_coneAngle, false);
                     #endregion
 
@@ -363,8 +364,8 @@ namespace GearCreation
 
                     //Find the center point of the gear
                     int first_driven_gear_teethNum = 10;
-                    double first_driven_gear_pitchDiameter = module * first_driven_gear_teethNum;
-                    double first_driven_gear_pitchRadius = (first_driven_gear_pitchDiameter) / 2;
+                    double first_driven_gear_pitchRadius = getPitchRadius(first_driven_gear_teethNum) + clearance;
+                    
                     Line rail5 = new Line(rail1.To, new Vector3d(rail2.Direction.X, rail2.Direction.Y, 0), first_driven_gear_pitchRadius);
 
 
@@ -832,6 +833,12 @@ namespace GearCreation
             double pitchDiameter = module * teethNum;
             double outDiameter = pitchDiameter + 2 * module;
             return outDiameter/2;
+        }
+
+        private double getPitchRadius(int teethNum)
+        {
+            double pitchDiameter = module * teethNum;
+            return pitchDiameter / 2;
         }
 
         /// <summary>
