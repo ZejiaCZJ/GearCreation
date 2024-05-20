@@ -12,6 +12,7 @@ using Rhino.Geometry.Intersect;
 using static Rhino.DocObjects.PhysicallyBasedMaterial;
 using System.Linq;
 using System.Runtime.InteropServices;
+using Eto.Forms;
 
 namespace GearCreation
 {
@@ -256,7 +257,7 @@ namespace GearCreation
                     double start_gear_selfRotAngle = 0;
 
                     SpurGear start_gear = new SpurGear(start_gear_centerPoint, start_gear_Direction, start_gear_xDir, start_gear_teethNum, module, pressure_angle, thickness, start_gear_selfRotAngle, true);
-                    myDoc.Objects.Add(start_gear.Model);
+                    //myDoc.Objects.Add(start_gear.Model);
 
                     BoundingBox start_gear_bBox = start_gear.Boundingbox;
                     Point3d max = new Point3d(start_gear_bBox.Max.X + 1, start_gear_bBox.Max.Y + 1, start_gear_bBox.Max.Z + 3);
@@ -311,7 +312,6 @@ namespace GearCreation
                         end_gear_dir.Reverse();
                         endEffector_rail = new Line(pointConnection1, end_gear_dir, distance);
                     }
-                    Guid endEffector_rail_guid = myDoc.Objects.Add(endEffector_rail.ToNurbsCurve());
                     #endregion
 
                     #region Calculate the cone angle of the end bevel gear and its driven gear
@@ -344,7 +344,7 @@ namespace GearCreation
                     Point3d end_gear_centerPoint = endEffector_rail.To;
                     Vector3d end_gear_xDir = new Vector3d(0, 0, 0);
                     int end_gear_teethNum = 10;
-                    double end_gear_selfRotAngle = 360/end_gear_teethNum/2;
+                    double end_gear_selfRotAngle = 0;
                     BevelGear end_gear = new BevelGear(end_gear_centerPoint, end_gear_Direction, end_gear_xDir, end_gear_teethNum, module, pressure_angle, thickness, end_gear_selfRotAngle, end_gear_coneAngle, false);
                     #endregion
 
@@ -372,10 +372,23 @@ namespace GearCreation
                     Point3d first_driven_gear_centerPoint = rail5.To;
                     Vector3d first_driven_gear_Direction = new Vector3d(0, 0, 1);
                     Vector3d first_driven_gear_xDir = new Vector3d(0, 0, 0);
-                    double first_driven_gear_selfRotAngle = 0;
+                    double first_driven_gear_selfRotAngle = -RhinoMath.ToDegrees(Vector3d.VectorAngle(new Vector3d(rail5.Direction.X, rail5.Direction.Y, 0), new Vector3d(1, 0, 0)));
+                    //RhinoApp.WriteLine($"First driven gear rotated {RhinoMath.ToDegrees(Vector3d.VectorAngle(new Vector3d(rail5.Direction.X, rail5.Direction.Y, 0), new Vector3d(1, 0, 0)))} degrees");
                     double first_driven_gear_coneAngle = end_gear_coneAngle;
                     BevelGear first_driven_gear = new BevelGear(first_driven_gear_centerPoint, first_driven_gear_Direction, first_driven_gear_xDir, first_driven_gear_teethNum, module, pressure_angle, thickness, first_driven_gear_selfRotAngle, first_driven_gear_coneAngle, false);
                     #endregion
+
+                    end_gear.Rotate(first_driven_gear_selfRotAngle-360/first_driven_gear_teethNum/2);
+                    //end_gear.Rotate(first_driven_gear_selfRotAngle);
+
+                    if (Intersection.BrepBrep(end_gear.Model, first_driven_gear.Model, myDoc.ModelAbsoluteTolerance, out intersectionCurves, out intersectionPoints))
+                    {
+                        if (intersectionCurves.Length > 0 || intersectionPoints.Length > 0)
+                        {
+                            first_driven_gear.Rotate(-first_driven_gear_selfRotAngle);
+                            end_gear.Rotate(-first_driven_gear_selfRotAngle + 360 / first_driven_gear_teethNum / 2);
+                        }
+                    }
 
                     #region connector gear (The gear that connects start gear and driven gear of end gear)
                     Point3d connector_gear_centerPoint = new Point3d(rail5.To.X, rail5.To.Y, start_gear_centerPoint.Z);
@@ -412,7 +425,7 @@ namespace GearCreation
                     #region shafts of first driven gear and connector gear
                     Line rail6 = new Line(new Point3d(first_driven_gear.CenterPoint.X, first_driven_gear.CenterPoint.Y, first_driven_gear.Boundingbox.Max.Z), new Point3d(first_driven_gear.CenterPoint.X, first_driven_gear.CenterPoint.Y, connector_gear.Boundingbox.Min.Z));
                     rail6.Extend(1, 1);
-                    Brep shaft = Brep.CreatePipe(rail6.ToNurbsCurve(), 1, true, PipeCapMode.Flat, true, myDoc.ModelAbsoluteTolerance, myDoc.ModelAngleToleranceRadians)[0];
+                    Brep shaft = Brep.CreatePipe(rail6.ToNurbsCurve(), 1.5, true, PipeCapMode.Flat, true, myDoc.ModelAbsoluteTolerance, myDoc.ModelAngleToleranceRadians)[0];
                     rail6.Extend(1, 1);
                     Brep shaft_clearance = Brep.CreatePipe(rail6.ToNurbsCurve(), 1.7, true, PipeCapMode.Flat, true, myDoc.ModelAbsoluteTolerance, myDoc.ModelAngleToleranceRadians)[0];
                     #endregion
@@ -444,7 +457,7 @@ namespace GearCreation
                     #region gaskets and shafts for end gear
                     Line extended_endEffector_rail = endEffector_rail;
                     extended_endEffector_rail.Extend(100, 100);
-                    myDoc.Objects.Add(extended_endEffector_rail.ToNurbsCurve());
+                    
                     Brep end_gear_bottom_gasket = null;
                     Brep end_gear_top_gasket = null;
                     Brep end_gear_shaft = null;
@@ -462,7 +475,7 @@ namespace GearCreation
 
                         distance = pointConnection1.DistanceTo(intersectionPoints[1]) - 1;
                         rail6 = new Line(pointConnection1, end_gear_dir, distance);
-                        end_gear_shaft = Brep.CreatePipe(rail6.ToNurbsCurve(), 1, true, PipeCapMode.Flat, true, myDoc.ModelAbsoluteTolerance, myDoc.ModelAngleToleranceRadians)[0];
+                        end_gear_shaft = Brep.CreatePipe(rail6.ToNurbsCurve(), 1.5, true, PipeCapMode.Flat, true, myDoc.ModelAbsoluteTolerance, myDoc.ModelAngleToleranceRadians)[0];
 
                         distance += 2;
                         rail6 = new Line(pointConnection1, end_gear_dir, distance);
@@ -503,8 +516,8 @@ namespace GearCreation
                                         gearSet.EndGearShaft = end_gear_shaft;
                                         gearSet.EndGearTopGasket = end_gear_top_gasket;
                                         gearSet.EndGearBottomGasket = end_gear_bottom_gasket;
-                                        gearSet.FirstDrivenGearTopGasket = end_gear_top_gasket;
-                                        gearSet.FirstDrivenGearBottomGasket = end_gear_bottom_gasket;
+                                        gearSet.FirstDrivenGearTopGasket = first_driven_gear_top_gasket;
+                                        gearSet.FirstDrivenGearBottomGasket = first_driven_gear_bottom_gasket;
                                         gearSet.ConnectorGearTopGasket = connector_gear_top_gasket;
                                         gearSet.ConnectorGearBottomGasket = connector_gear_bottom_gasket;
                                         gearSet.Shaft = shaft;
@@ -529,8 +542,8 @@ namespace GearCreation
                                     gearSet.EndGearShaft = end_gear_shaft;
                                     gearSet.EndGearTopGasket = end_gear_top_gasket;
                                     gearSet.EndGearBottomGasket = end_gear_bottom_gasket;
-                                    gearSet.FirstDrivenGearTopGasket = end_gear_top_gasket;
-                                    gearSet.FirstDrivenGearBottomGasket = end_gear_bottom_gasket;
+                                    gearSet.FirstDrivenGearTopGasket = first_driven_gear_top_gasket;
+                                    gearSet.FirstDrivenGearBottomGasket = first_driven_gear_bottom_gasket;
                                     gearSet.ConnectorGearTopGasket = connector_gear_top_gasket;
                                     gearSet.ConnectorGearBottomGasket = connector_gear_bottom_gasket;
                                     gearSet.Shaft = shaft;
@@ -556,10 +569,9 @@ namespace GearCreation
 
                         //Pushing the end gear
                         endEffector_rail.Extend(0, 1);
-                        myDoc.Objects.Delete(endEffector_rail_guid, true);
-                        endEffector_rail_guid = myDoc.Objects.Add(endEffector_rail.ToNurbsCurve());
                         end_gear_centerPoint = endEffector_rail.To;
-                        end_gear = new BevelGear(end_gear_centerPoint, end_gear_Direction, end_gear_xDir, end_gear_teethNum, module, pressure_angle, thickness, end_gear_selfRotAngle, end_gear_coneAngle, false);
+                        end_gear = new BevelGear(end_gear);
+                        end_gear.Translate(end_gear_centerPoint);
 
                         //Predict driven gear's location and see if the connector gear is appropriate
                         Vector3d orthogonal_temp = GetOrthogonalWithMinZ(end_gear_Direction);
@@ -573,11 +585,13 @@ namespace GearCreation
 
                         //Adjust first driven gear
                         rail5 = new Line(rail1.To, new Vector3d(rail2.Direction.X, rail2.Direction.Y, 0), first_driven_gear_pitchRadius);
-                        first_driven_gear = new BevelGear(rail5.To, first_driven_gear_Direction, first_driven_gear_xDir, first_driven_gear_teethNum, module, pressure_angle, thickness, first_driven_gear_selfRotAngle, first_driven_gear_coneAngle, false);
+                        first_driven_gear = new BevelGear(first_driven_gear);
+                        first_driven_gear.Translate(rail5.To);
 
                         //Adjust connector gear
                         connector_gear_centerPoint = new Point3d(rail5.To.X, rail5.To.Y, start_gear_centerPoint.Z);
-                        connector_gear = new SpurGear(connector_gear_centerPoint, connector_gear_Direction, connector_gear_xDir, connector_gear_teethNum, module, pressure_angle, thickness, connector_gear_selfRotAngle, false);
+                        connector_gear = new SpurGear(connector_gear);
+                        connector_gear.Translate(connector_gear_centerPoint);
 
                         //Adjust second driven gear if needed
                         second_driven_gear_tipRadius = (connector_gear.CenterPoint.DistanceTo(start_gear_centerPoint) - start_gear.BaseRadius - connector_gear.BaseRadius) / 2;
@@ -597,7 +611,7 @@ namespace GearCreation
                         //Adjust the shaft and gaskets for connector gear and first driven gear
                         rail6 = new Line(new Point3d(first_driven_gear.CenterPoint.X, first_driven_gear.CenterPoint.Y, first_driven_gear.Boundingbox.Max.Z), new Point3d(first_driven_gear.CenterPoint.X, first_driven_gear.CenterPoint.Y, connector_gear.Boundingbox.Min.Z));
                         rail6.Extend(1, 1);
-                        shaft = Brep.CreatePipe(rail6.ToNurbsCurve(), 1, true, PipeCapMode.Flat, true, myDoc.ModelAbsoluteTolerance, myDoc.ModelAngleToleranceRadians)[0];
+                        shaft = Brep.CreatePipe(rail6.ToNurbsCurve(), 1.5, true, PipeCapMode.Flat, true, myDoc.ModelAbsoluteTolerance, myDoc.ModelAngleToleranceRadians)[0];
                         rail6.Extend(1, 1);
                         shaft_clearance = Brep.CreatePipe(rail6.ToNurbsCurve(), 1.7, true, PipeCapMode.Flat, true, myDoc.ModelAbsoluteTolerance, myDoc.ModelAngleToleranceRadians)[0];
 
@@ -660,7 +674,7 @@ namespace GearCreation
 
                             distance = pointConnection1.DistanceTo(topPoint) - 1;
                             rail6 = new Line(pointConnection1, end_gear_dir, distance);
-                            end_gear_shaft = Brep.CreatePipe(rail6.ToNurbsCurve(), 1, true, PipeCapMode.Flat, true, myDoc.ModelAbsoluteTolerance, myDoc.ModelAngleToleranceRadians)[0];
+                            end_gear_shaft = Brep.CreatePipe(rail6.ToNurbsCurve(), 1.5, true, PipeCapMode.Flat, true, myDoc.ModelAbsoluteTolerance, myDoc.ModelAngleToleranceRadians)[0];
 
                             distance += 2;
                             rail6 = new Line(pointConnection1, end_gear_dir, distance);
@@ -703,6 +717,57 @@ namespace GearCreation
                         {
                             if(bestGearSet.SecondDrivenGear != null && gearset.SecondDrivenGear.NumTeeth < bestGearSet.SecondDrivenGear.NumTeeth)
                                 bestGearSet = gearset;
+                        }
+                    }
+
+                    //Rotate the connector gear and second driven gear for perfect matching
+                    if(bestGearSet.SecondDrivenGear != null && Intersection.BrepBrep(bestGearSet.ConnectorGear.Model, bestGearSet.SecondDrivenGear.Model, myDoc.ModelAbsoluteTolerance, out intersectionCurves, out intersectionPoints))
+                    {
+                        if(bestGearSet.ConnectorGear.CenterPoint.X > bestGearSet.SecondDrivenGear.CenterPoint.X && bestGearSet.ConnectorGear.CenterPoint.Y < bestGearSet.SecondDrivenGear.CenterPoint.Y)
+                        {
+                            rail5 = new Line(bestGearSet.ConnectorGear.CenterPoint, bestGearSet.SecondDrivenGear.CenterPoint);
+                            double angle = RhinoMath.ToDegrees(Vector3d.VectorAngle(new Vector3d(rail5.Direction.X, rail5.Direction.Y, 0), new Vector3d(0, 1, 0)));
+                            RhinoApp.WriteLine($"Angle is {angle}");
+                            bestGearSet.ConnectorGear.Rotate(angle);
+                            bestGearSet.SecondDrivenGear.Rotate(-180 + angle);
+                            bestGearSet.ConnectorGear.Rotate(360 / bestGearSet.ConnectorGear.NumTeeth / 2);
+                        }
+                        else if (bestGearSet.ConnectorGear.CenterPoint.X > bestGearSet.SecondDrivenGear.CenterPoint.X && bestGearSet.ConnectorGear.CenterPoint.Y > bestGearSet.SecondDrivenGear.CenterPoint.Y)
+                        {
+                            rail5 = new Line(bestGearSet.ConnectorGear.CenterPoint, bestGearSet.SecondDrivenGear.CenterPoint);
+                            double angle = RhinoMath.ToDegrees(Vector3d.VectorAngle(new Vector3d(rail5.Direction.X, rail5.Direction.Y, 0), new Vector3d(0, 1, 0)));
+                            RhinoApp.WriteLine($"Angle is {angle}");
+                            bestGearSet.ConnectorGear.Rotate(180 - angle);
+                            bestGearSet.SecondDrivenGear.Rotate(-angle);
+                            bestGearSet.ConnectorGear.Rotate(360 / bestGearSet.ConnectorGear.NumTeeth / 2);
+                        }
+                        else if(bestGearSet.ConnectorGear.CenterPoint.X < bestGearSet.SecondDrivenGear.CenterPoint.X && bestGearSet.ConnectorGear.CenterPoint.Y > bestGearSet.SecondDrivenGear.CenterPoint.Y)
+                        {
+                            rail5 = new Line(bestGearSet.ConnectorGear.CenterPoint, bestGearSet.SecondDrivenGear.CenterPoint);
+                            double angle = RhinoMath.ToDegrees(Vector3d.VectorAngle(new Vector3d(rail5.Direction.X, rail5.Direction.Y, 0), new Vector3d(0, 1, 0)));
+                            RhinoApp.WriteLine($"Angle is {angle}");
+                            bestGearSet.ConnectorGear.Rotate(-180 + angle);
+                            bestGearSet.SecondDrivenGear.Rotate(angle);
+                            bestGearSet.SecondDrivenGear.Rotate(360 / bestGearSet.SecondDrivenGear.NumTeeth / 2);
+                        }
+                        else if (bestGearSet.ConnectorGear.CenterPoint.X < bestGearSet.SecondDrivenGear.CenterPoint.X && bestGearSet.ConnectorGear.CenterPoint.Y < bestGearSet.SecondDrivenGear.CenterPoint.Y)
+                        {
+                            rail5 = new Line(bestGearSet.ConnectorGear.CenterPoint, bestGearSet.SecondDrivenGear.CenterPoint);
+                            double angle = RhinoMath.ToDegrees(Vector3d.VectorAngle(new Vector3d(rail5.Direction.X, rail5.Direction.Y, 0), new Vector3d(0, 1, 0)));
+                            RhinoApp.WriteLine($"Angle is {angle}");
+                            bestGearSet.ConnectorGear.Rotate(-angle);
+                            bestGearSet.SecondDrivenGear.Rotate(180 - angle);
+                            bestGearSet.SecondDrivenGear.Rotate(360 / bestGearSet.SecondDrivenGear.NumTeeth / 2);
+                        }
+                        else if (bestGearSet.ConnectorGear.CenterPoint.X == bestGearSet.SecondDrivenGear.CenterPoint.X && bestGearSet.ConnectorGear.CenterPoint.Y < bestGearSet.SecondDrivenGear.CenterPoint.Y)
+                        {
+                            bestGearSet.SecondDrivenGear.Rotate(180);
+                            bestGearSet.SecondDrivenGear.Rotate(360 / bestGearSet.SecondDrivenGear.NumTeeth / 2);
+                        }
+                        else
+                        {
+                            bestGearSet.ConnectorGear.Rotate(180);
+                            bestGearSet.ConnectorGear.Rotate(360 / bestGearSet.ConnectorGear.NumTeeth / 2);
                         }
                     }
 
