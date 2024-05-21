@@ -59,13 +59,13 @@ namespace GearCreation.Geometry
         public List<Vector3d> TeethDirections { get => teethDirections; }
         public List<Point3d> TeethTips { get => teethTips; }
 
-        public BoundingBox Boundingbox { get => _boundingBox; }
+        public BoundingBox Boundingbox { get => _boundingBox; set => _boundingBox = value; }
 
-        public Brep Boundingbox_big { get => _boundingBox_big; }
+        public Brep Boundingbox_big { get => _boundingBox_big; set => _boundingBox_big = value.DuplicateBrep(); }
 
         public Brep[] Gaskets { get => _gaskets; }
 
-        public double SelfRotAngle { get => _selfRotAngle; }
+        public double SelfRotAngle { get => _selfRotAngle; set => _selfRotAngle = value; }
 
         private Point3d pt = new Point3d();
         public Point3d Pt { get => pt; }
@@ -98,6 +98,28 @@ namespace GearCreation.Geometry
 
         public BevelGear()
         {
+        }
+
+        public BevelGear(BevelGear gear)
+        {
+            this.NumTeeth = gear.NumTeeth;
+            this.Pitch = gear.Pitch;
+            this.Module = gear.Module;
+            this.FaceWidth = gear.FaceWidth;
+            this.TipRadius = gear.TipRadius;
+            this.RootRadius = gear.RootRadius;
+            this.PitchRadius = gear.PitchRadius;
+            this.BaseRadius = gear.BaseRadius;
+            this.ToothDepth = gear.ToothDepth;
+            this.BaseCurve = gear.BaseCurve;
+            this.CenterPoint = new Point3d(gear.CenterPoint);
+            this.Direction = new Vector3d(gear.Direction);
+            this.IsMovable = gear.IsMovable;
+            this.X_direction = new Vector3d(gear.X_direction);
+            this.Boundingbox = gear.Boundingbox;
+            this.Boundingbox_big = gear.Boundingbox_big;
+            this.Model = gear.Model.DuplicateBrep();
+            this._selfRotAngle = gear._selfRotAngle;
         }
 
         public List<Point3d> GenerateToothSide(double baseDia, double outDia, double sampleNum, double pressureAngle, double module, double s0, double pitchDia)
@@ -516,7 +538,13 @@ namespace GearCreation.Geometry
             
         }
 
-        public void translate(Point3d centerPoint)
+        public void Rotate(double degree)
+        {
+            Transform selfRotation = Transform.Rotation(RhinoMath.ToRadians(degree), _direction, _centerPoint);
+            base.Model.Transform(selfRotation);
+        }
+
+        public void Translate(Point3d centerPoint)
         {
             Vector3d temp_centerPoint = Point3d.Subtract(centerPoint, _centerPoint);
             _centerPoint = centerPoint;
@@ -525,17 +553,19 @@ namespace GearCreation.Geometry
             base.BaseCurve.Transform(centerTrans);
             _boundingBox.Transform(centerTrans);
             _boundingBox_big.Transform(centerTrans);
-            _gaskets[0].Transform(centerTrans);
-            _gaskets[1].Transform(centerTrans);
+            //_gaskets[0].Transform(centerTrans);
+            //_gaskets[1].Transform(centerTrans);
             _x_original_direction.Transform(centerTrans);
 
-            for (int i = 0; i < teethTips.Count(); i++)
-            {
-                Point3d p = teethTips[i];
-                p.Transform(centerTrans);
-                teethTips[i] = p;
-            }
+            //for (int i = 0; i < teethTips.Count(); i++)
+            //{
+            //    Point3d p = teethTips[i];
+            //    p.Transform(centerTrans);
+            //    teethTips[i] = p;
+            //}
         }
+
+        
 
         public BevelGear Duplicate()
         {
@@ -549,11 +579,17 @@ namespace GearCreation.Geometry
             gear.PitchRadius = this.PitchRadius;
             gear.BaseRadius = this.BaseRadius;
             gear.ToothDepth = this.ToothDepth;
+            gear.BaseCurve = this.BaseCurve;
             gear.CenterPoint = new Point3d(this.CenterPoint);
             gear.Direction = new Vector3d(this.Direction);
             gear.IsMovable = this.IsMovable;
             gear.X_direction = new Vector3d(this.X_direction);
-            //gear.TeethDirections = new List<Vector3d>(this.TeethDirections);
+            gear.Boundingbox = this.Boundingbox;
+            gear.Boundingbox_big = this.Boundingbox_big;
+            gear.Model = this.Model.DuplicateBrep();
+            gear._selfRotAngle = this._selfRotAngle;
+
+            
             return gear;
         }
     }

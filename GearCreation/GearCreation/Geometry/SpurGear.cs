@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using GH_IO.Types;
 using Rhino;
 using Rhino.Geometry;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.TrackBar;
@@ -25,7 +26,9 @@ namespace GearCreation
             private double _clearance = 0.167;
             private double _involSample = 5;
             private double _tipRadius = 0;
+            private double _pitchRadius = 0;
             private double _rootRadius = 0;
+            private double _baseRadius = 0;
             private double _toothDepth = 0;
             private double _selfRotAngle = 0; // degree
             private bool _isMovable = false;
@@ -38,6 +41,9 @@ namespace GearCreation
             private List<Vector3d> teethDirections = new List<Vector3d>();
             private List<Point3d> teethTips = new List<Point3d>();
 
+            private BoundingBox _boundingBox = new BoundingBox();
+            private Brep _boundingBox_big = new Brep();
+
             private RhinoDoc mydoc = RhinoDoc.ActiveDoc;
 
             public int NumTeeth { get => _numTeeth; protected set => _numTeeth = value; }
@@ -47,12 +53,18 @@ namespace GearCreation
             public double TipRadius { get => _tipRadius; protected set => _tipRadius = value; }
             public double RootRadius { get => _rootRadius; protected set => _rootRadius = value; }
             public double ToothDepth { get => _toothDepth; protected set => _toothDepth = value; }
+            public double PitchRadius { get => _pitchRadius; protected set => _pitchRadius = value; }
+            public double BaseRadius { get => _baseRadius; protected set => _baseRadius = value; }
             public Point3d CenterPoint { get => _centerPoint; protected set => _centerPoint = value; }
             public Vector3d Direction { get => _direction; protected set => _direction = value; }
             public bool IsMovable { get => _isMovable; set => _isMovable = value; }
             public Vector3d X_direction { get => _x_direction; set => _x_direction = value; }
             public List<Vector3d> TeethDirections { get => teethDirections; }
             public List<Point3d> TeethTips { get => teethTips; }
+
+            public BoundingBox Boundingbox { get => _boundingBox; set => _boundingBox = value; }
+
+            public Brep Boundingbox_big { get => _boundingBox_big; set => _boundingBox_big = value; }
 
             public double SelfRotAngle { get => _selfRotAngle; }
 
@@ -84,6 +96,28 @@ namespace GearCreation
                 GenerateGear();
             }
 
+            public SpurGear(SpurGear gear)
+            {
+                this.NumTeeth = gear.NumTeeth;
+                this.Pitch = gear.Pitch;
+                this.Module = gear.Module;
+                this.FaceWidth = gear.FaceWidth;
+                this.TipRadius = gear.TipRadius;
+                this.RootRadius = gear.RootRadius;
+                this.PitchRadius = gear.PitchRadius;
+                this.BaseRadius = gear.BaseRadius;
+                this.ToothDepth = gear.ToothDepth;
+                this.BaseCurve = gear.BaseCurve;
+                this.CenterPoint = new Point3d(gear.CenterPoint);
+                this.Direction = new Vector3d(gear.Direction);
+                this.IsMovable = gear.IsMovable;
+                this.X_direction = new Vector3d(gear.X_direction);
+                this.Boundingbox = gear.Boundingbox;
+                this.Boundingbox_big = gear.Boundingbox_big;
+                this.Model = gear.Model.DuplicateBrep();
+                this._selfRotAngle = gear._selfRotAngle;
+            }
+
             public List<Point3d> GenerateToothSide(double baseDia, double outDia, double sampleNum, double pressureAngle, double module, double s0, double pitchDia)
             {
                 List<Point3d> result = new List<Point3d>();
@@ -110,7 +144,7 @@ namespace GearCreation
                     return pt;
                 }
 
-                coneAngle = (Math.PI / 180) * coneAngle;
+                coneAngle = RhinoMath.ToRadians(coneAngle);
                 double dist_to_circle = Math.Sqrt(Math.Pow(pt.X, 2) + Math.Pow(pt.Y, 2)) - circleDiameter / 2;
                 double xy_scale_factor = circleDiameter / 2 + dist_to_circle * Math.Cos(coneAngle);
                 xy_scale_factor = xy_scale_factor / (circleDiameter / 2 + dist_to_circle);
@@ -145,7 +179,7 @@ namespace GearCreation
 
             protected override void GenerateBaseCurve()
             {
-                double pressureAngle = (Math.PI / 180) * _pressureAngle; // convert the pressure angle into radian
+                double pressureAngle = RhinoMath.ToRadians(_pressureAngle); // convert the pressure angle into radian
 
                 double pitchDiameter = _module * _numTeeth;
                 double baseDiameter = pitchDiameter * Math.Cos(pressureAngle);
@@ -163,6 +197,8 @@ namespace GearCreation
                 _tipRadius = outDiameter / 2;
                 _rootRadius = rootDiameter / 2;
                 _toothDepth = _tipRadius - _rootRadius;
+                _pitchRadius = pitchDiameter / 2;
+                _baseRadius = baseDiameter / 2;
                 _pitch = Math.PI * _module;
 
                 // More details about involute spur gear: https://www.tec-science.com/mechanical-power-transmission/involute-gear/calculation-of-involute-gears/
@@ -187,17 +223,23 @@ namespace GearCreation
                 if (rootDiameter > baseDiameter)
                 {
                     invol_angle_module = Math.Sqrt(Math.Pow((rootDiameter / baseDiameter), 2) - 1);
-                    RhinoApp.WriteLine("invol_angle_module" + invol_angle_module);
+                    //RhinoApp.WriteLine("invol_angle_module" + invol_angle_module);
                 }
 
                 List<Point3d> involPts = GenerateInvolPoints(baseDiameter, invol_start_angle, invol_end_angle, invol_angle_module, _involSample);
                 #endregion
+
+                for (int i = 0; i < involPts.Count; i++)
+                {
+                    involPts[i] = tiltPointAroundCircle(involPts[i], _coneAngle / 2, pitchDiameter);
+                }
 
                 List<Curve> toothCrv = new List<Curve>();
                 Curve involCrv1 = Curve.CreateInterpolatedCurve(involPts, 3, CurveKnotStyle.Chord);
                 Transform mirror = Transform.Mirror(new Point3d(0, 0, 0), new Vector3d(1, 0, 0));
                 Curve involCrv2 = involCrv1.DuplicateCurve();
                 involCrv2.Transform(mirror);
+                
 
                 Point3d ptArc = tiltPointAroundCircle(new Point3d(0, _tipRadius, 0), _coneAngle / 2, pitchDiameter);
                 //RhinoApp.WriteLine("point on up arc" + ptArc);
@@ -207,12 +249,10 @@ namespace GearCreation
                 //dedendum
                 if (rootDiameter < baseDiameter)
                 {
-                    RhinoApp.WriteLine("rootDiameter < baseDiameter");
+                    //RhinoApp.WriteLine("rootDiameter < baseDiameter");
                     double theta = Math.PI * _module / (2 * baseDiameter);
                     Point3d pt = new Point3d(-_rootRadius * Math.Cos(invol_start_angle), _rootRadius * Math.Sin(invol_start_angle), 0);
                     pt.Transform(mirror);
-                    RhinoDoc myDoc = RhinoDoc.ActiveDoc;
-                    //myDoc.Objects.AddPoint(pt);
                     Curve dedCrv1 = new Line(involCrv1.PointAtStart, tiltPointAroundCircle(pt, _coneAngle / 2, pitchDiameter)).ToNurbsCurve();
                     Curve dedCrv2 = dedCrv1.DuplicateCurve();
                     dedCrv2.Transform(mirror);
@@ -270,15 +310,8 @@ namespace GearCreation
                     teethTips.Add(pt);
                 }
 
-                //RhinoApp.WriteLine("geartooth got crvs" + gearTooth.Count());
                 Curve gear_tooth_crv = Curve.JoinCurves(gearTooth, 0.1, true)[0];
 
-                //CurveOrientation normalDirection = gear_tooth_crv.ClosedCurveOrientation();
-                ////RhinoApp.WriteLine("get curve direction" + normalDirection);
-                //if (normalDirection == CurveOrientation.CounterClockwise)
-                //{
-                //    gear_tooth_crv.Reverse();
-                //}
 
                 base.BaseCurve = gear_tooth_crv;
             }
@@ -286,7 +319,7 @@ namespace GearCreation
             private void GenerateGear()
             {
                 GenerateBaseCurve();
-                RhinoApp.WriteLine("extruding facewidth" + _faceWidth);
+                //RhinoApp.WriteLine("extruding facewidth" + _faceWidth);
                 var sweep = new SweepOneRail();
                 sweep.AngleToleranceRadians = mydoc.ModelAngleToleranceRadians;
                 sweep.ClosedSweep = false;
@@ -319,7 +352,7 @@ namespace GearCreation
                 {
                     // drill a central hole so that the gear will be movable on the shaft
                     double clearance = 0.35;//Xia's note: added 0.1 to this based on experiment result //Xia's note: reduced 0.05*2 to make tighter//Xia's note: enlarged 0.05 for new printing orientation
-                    double shaftRadius = 2;
+                    double shaftRadius = 1;
                     double holdRadius = clearance + shaftRadius;
                     Brep holeBrep = Brep.CreatePipe(gearPathCrv, holdRadius, false, PipeCapMode.Round, true, mydoc.ModelAbsoluteTolerance, mydoc.ModelAngleToleranceRadians)[0];
 
@@ -331,6 +364,10 @@ namespace GearCreation
                 }
 
                 base.Model = gearSolid;
+                _boundingBox = base.Model.GetBoundingBox(true);
+                Point3d max = new Point3d(_boundingBox.Max.X + 1, _boundingBox.Max.Y + 1, _boundingBox.Max.Z + 3);
+                Point3d min = new Point3d(_boundingBox.Min.X - 1, _boundingBox.Min.Y - 1, _boundingBox.Min.Z - 2);
+                _boundingBox_big = new BoundingBox(min, max).ToBrep();
 
                 if (_centerPoint != Point3d.Unset)
                 {
@@ -338,6 +375,8 @@ namespace GearCreation
                     Transform centerTrans = Transform.Translation(centerDirection);
                     base.Model.Transform(centerTrans);
                     base.BaseCurve.Transform(centerTrans);
+                    _boundingBox.Transform(centerTrans);
+                    _boundingBox_big.Transform(centerTrans);
                     _x_original_direction.Transform(centerTrans);
 
                     for (int i = 0; i < teethTips.Count(); i++)
@@ -354,6 +393,8 @@ namespace GearCreation
                     Transform centerRotate = Transform.Rotation(new Vector3d(0, 0, 1), _direction, _centerPoint);
                     base.Model.Transform(centerRotate);
                     base.BaseCurve.Transform(centerRotate);
+                    _boundingBox.Transform(centerRotate);
+                    _boundingBox_big.Transform(centerRotate);
                     _x_original_direction.Transform(centerRotate);
                     for (int i = 0; i < teethTips.Count(); i++)
                     {
@@ -381,6 +422,8 @@ namespace GearCreation
                     Transform centerRotate1 = Transform.Rotation(_x_original_direction, _x_direction, _centerPoint);
                     base.Model.Transform(centerRotate1);
                     base.BaseCurve.Transform(centerRotate1);
+                    _boundingBox.Transform(centerRotate1);
+                    _boundingBox_big.Transform(centerRotate1);
                     for (int i = 0; i < teethTips.Count(); i++)
                     {
                         Point3d p = teethTips[i];
@@ -399,6 +442,7 @@ namespace GearCreation
                 double selfRotRad = Math.PI / 180 * _selfRotAngle;
                 Transform selfRotation = Transform.Rotation(selfRotRad, _direction, _centerPoint);
                 base.Model.Transform(selfRotation);
+                
 
                 for (int i = 0; i < teethTips.Count(); i++)
                 {
@@ -431,6 +475,7 @@ namespace GearCreation
                 double selfRotRad = Math.PI / 180 * selfRotAngle;
                 Transform selfRotation = Transform.Rotation(selfRotRad, _direction, _centerPoint);
                 base.Model.Transform(selfRotation);
+
 
                 for (int i = 0; i < teethTips.Count(); i++)
                 {
@@ -521,6 +566,32 @@ namespace GearCreation
             {
                 base.ConductMoveAndUpdateParam(move);
             }
+            public void Translate(Point3d centerPoint)
+            {
+                Vector3d temp_centerPoint = Point3d.Subtract(centerPoint, _centerPoint);
+                _centerPoint = centerPoint;
+                Transform centerTrans = Transform.Translation(temp_centerPoint);
+                base.Model.Transform(centerTrans);
+                base.BaseCurve.Transform(centerTrans);
+                _boundingBox.Transform(centerTrans);
+                _boundingBox_big.Transform(centerTrans);
+                _x_original_direction.Transform(centerTrans);
+
+                //for (int i = 0; i < teethTips.Count(); i++)
+                //{
+                //    Point3d p = teethTips[i];
+                //    p.Transform(centerTrans);
+                //    teethTips[i] = p;
+                //}
+            }
+
+            public void Rotate(double degree)
+            {
+                Transform selfRotation = Transform.Rotation(RhinoMath.ToRadians(degree), _direction, _centerPoint);
+                base.Model.Transform(selfRotation);
+            }
+
+
 
         }
 
